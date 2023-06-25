@@ -10,7 +10,7 @@ use std::str::FromStr;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
-    #[arg(short, long, help = "Input file")]
+    #[arg(help = "Input file")]
     input: Option<String>,
 
     #[arg(short, long, help = "Elements to be selected")]
@@ -26,9 +26,8 @@ struct Cli {
     verbosity: u8,
 }
 fn main() {
-    info!("Start rjp");
     let cli = Cli::parse();
-    let verbose = std::cmp::min(cli.verbosity, 4) as usize;
+    let verbose = (if cli.debug {4} else {std::cmp::min(cli.verbosity, 4)}) as usize;
     let ts = stderrlog::Timestamp::from_str("ms").unwrap();
 
     stderrlog::new()
@@ -39,14 +38,19 @@ fn main() {
         .init()
         .unwrap();
 
-    debug!("{:#?}", cli);
+    info!("Initialization");
+
+    debug!("Input Parameters {:#?}", cli);
 
     let mut input_source = if let Some(path) = cli.input {
+        debug!("Reading from file {}", &path);
         InputSource::new_file(&path).expect(&format!("Error reading {}", &path))
     } else {
+        debug!("Reading from stdin");
         InputSource::new_stdin()
     };
 
+    info!("Reading lines ...");
     let mut all_lines = String::new();
     loop {
         let line = input_source.lines().expect("Error reading line");
@@ -58,7 +62,8 @@ fn main() {
 
     debug_assert!(all_lines.len() > 0);
 
-    let json_content: Value = serde_json::from_str(&all_lines).expect("");
+    info!("Converting input into object");
+    let json_content: Value = serde_json::from_str(&all_lines).unwrap();
 
     info!("Printing output");
     println!("{}", serde_json::to_string_pretty(&json_content).unwrap())

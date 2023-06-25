@@ -5,7 +5,6 @@ type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 const CMD: &str = "rjp";
 
-
 fn run_stdin(args: &[&str], stdin: &str, expected: &str) -> TestResult {
     Command::cargo_bin(CMD)
         .unwrap()
@@ -16,7 +15,6 @@ fn run_stdin(args: &[&str], stdin: &str, expected: &str) -> TestResult {
         .stdout(expected.to_owned());
     Ok(())
 }
-
 
 #[test]
 fn prints_stdin() -> TestResult {
@@ -35,7 +33,7 @@ fn run_file_success(input_path: &str, args: &[&str]) -> TestResult {
     Command::cargo_bin(CMD)
         .unwrap()
         .args(args)
-        .args(&["-d", "-i", &input_file])
+        .args(&["-d", &input_file])
         .assert()
         .success()
         .stdout(expected.to_owned());
