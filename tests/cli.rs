@@ -46,3 +46,8 @@ fn run_file_success(input_path: &str, args: &[&str]) -> TestResult {
 fn test_empty_file() -> TestResult {
     run_file_success("tests/json_files/empty", &[])
 }
+
+#[test]
+fn test_empty_array() -> TestResult {
+    run_file_success("tests/json_files/empty_array", &[])
+}
