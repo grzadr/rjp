@@ -1,17 +1,50 @@
 // src/select.rs
 
 use core::fmt;
+use regex::Regex;
+use serde_json::Value;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Select {
-    path: String
+    path: String,
+    fields: Vec<String>,
+}
+
+fn parse_path(s: &str) -> Vec<String> {
+    let mut result = vec![".".to_string()];
+    if s == "." {
+        return result;
+    }
+
+    let re = Regex::new(r#"\.(?:(?:\"([^\"]+)\")|([^.]+))"#).unwrap();
+    result.append(&mut re.captures_iter(s).map(|cap| {
+        if let Some(s) = cap.get(1) {
+            s.as_str().to_string()
+        } else if let Some(s) = cap.get(2) {
+            s.as_str().to_string()
+        } else {
+            panic!("Couldn't parse '{}'", s);
+        }
+    }).collect());
+
+    result
 }
 
 impl Select {
+
     pub fn new(s: &str) -> Self {
         Select {
-            path: s.to_string()
+            path: s.to_string(),
+            fields: parse_path(s),
         }
+    }
+
+    pub fn collect(&self) -> Vec<&str> {
+        self.fields.iter().map(|s| s.as_str()).collect()
+    }
+
+    pub fn name(&self) -> &str {
+        self.fields.last().unwrap()
     }
 }
 
@@ -34,6 +67,7 @@ impl fmt::Display for Select {
         write!(f, "{}", self.path)
     }
 }
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Selects(pub Vec<Select>);
 
@@ -50,5 +84,55 @@ impl fmt::Display for Selects {
             s.push_str(&format!("{} ", select));
         }
         write!(f, "{}", s.trim_end())
+    }
+}
+
+pub struct SelectedValue {
+    pub value: Value,
+    pub path: Select,
+}
+
+impl SelectedValue {
+    pub fn new(value: &Value, path: Select) -> Self {
+        let mut value = value.clone();
+        for field in path.collect() {
+            if field == "." {
+                continue;
+            }
+            value = value[field].clone();
+        }
+        Self { value, path }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_path() {
+        assert_eq!(parse_path("."), vec![".".to_string()]);
+        assert_eq!(parse_path(".foo"), vec![".".to_string(), "foo".to_string()]);
+        assert_eq!(parse_path(".foo.bar"), vec![".".to_string(), "foo".to_string(), "bar".to_string()]);
+        assert_eq!(parse_path(".foo.\"bar.baz\""), vec![".".to_string(), "foo".to_string(), "bar.baz".to_string()]);
+        assert_eq!(parse_path(".foo.\"bar.baz\".qux"), vec![".".to_string(), "foo".to_string(), "bar.baz".to_string(), "qux".to_string()]);
+    }
+
+    #[test]
+    fn test_select_new() {
+        assert_eq!(Select::new("."), Select { path: ".".to_string(), fields: vec![".".to_string()] });
+        assert_eq!(Select::new(".foo"), Select { path: ".foo".to_string(), fields: vec![".".to_string(), "foo".to_string()] });
+        assert_eq!(Select::new(".foo.bar"), Select { path: ".foo.bar".to_string(), fields: vec![".".to_string(), "foo".to_string(), "bar".to_string()] });
+        assert_eq!(Select::new(".foo.\"bar.baz\""), Select { path: ".foo.\"bar.baz\"".to_string(), fields: vec![".".to_string(), "foo".to_string(), "bar.baz".to_string()] });
+        assert_eq!(Select::new(".foo.\"bar.baz\".qux"), Select { path: ".foo.\"bar.baz\".qux".to_string(), fields: vec![".".to_string(), "foo".to_string(), "bar.baz".to_string(), "qux".to_string()] });
+    }
+
+    #[test]
+    fn test_select_collect() {
+        assert_eq!(Select::new(".").collect(), vec!["."]);
+        assert_eq!(Select::new(".foo").collect(), vec![".", "foo"]);
+        assert_eq!(Select::new(".foo.bar").collect(), vec![".", "foo", "bar"]);
+        assert_eq!(Select::new(".foo.\"bar.baz\"").collect(), vec![".", "foo", "bar.baz"]);
+        assert_eq!(Select::new(".foo.\"bar.baz\".qux").collect(), vec![".", "foo", "bar.baz", "qux"]);
     }
 }
