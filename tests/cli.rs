@@ -49,3 +49,23 @@ fn test_empty_file() -> TestResult {
 fn test_empty_array() -> TestResult {
     run_file_success("tests/json_files/empty_array", &[])
 }
+
+#[test]
+fn test_select_default() -> TestResult {
+    run_file_success("tests/json_files/select_default", &[])
+}
+
+#[test]
+fn test_select_name() -> TestResult {
+    run_file_success("tests/json_files/select_name", &["-s", "name"])
+}
+
+#[test]
+fn test_select_name_price_sku_() -> TestResult {
+    run_file_success("tests/json_files/select_name", &["-s", "name","-s", "price","-s", "sku",])
+}
+
+#[test]
+fn test_select_ship_to() -> TestResult {
+    run_file_success("tests/json_files/select_name", &["-s", "shipTo"])
+}
