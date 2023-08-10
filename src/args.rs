@@ -1,10 +1,10 @@
 // src/args.rs
 
-use super::select::{Selects, Select};
+use super::select::{Select, Selects};
 use clap::Parser;
-use stderrlog::Timestamp;
-use std::str::FromStr;
 use std::error::Error;
+use std::str::FromStr;
+use stderrlog::Timestamp;
 
 type MyResult<T> = Result<T, Box<dyn Error>>;
 
@@ -15,6 +15,7 @@ pub struct Config {
     pub filters: Vec<String>,
     pub verbosity: usize,
     pub ts: Timestamp,
+    pub indent: usize,
 }
 
 #[derive(Parser, Debug)]
@@ -33,6 +34,12 @@ struct Cli {
     #[arg(short, long, help = "Filtering conditions")]
     filters: Vec<String>,
 
+    #[arg(short, long, help = "Size of indentation",
+        value_parser = clap::value_parser!(i32).range(1..),
+        default_value = "4"
+    )]
+    indent: Option<i32>,
+
     #[arg(short, long, help = "Shows additional debug info")]
     debug: bool,
 
@@ -47,15 +54,25 @@ pub fn get_args() -> MyResult<Config> {
         dbg!(&cli);
     }
 
-    let verbosity = (if cli.debug {4} else {std::cmp::min(cli.verbosity, 4)}) as usize;
+    let verbosity = (if cli.debug {
+        4
+    } else {
+        std::cmp::min(cli.verbosity, 4)
+    }) as usize;
     let ts = stderrlog::Timestamp::from_str("ms").unwrap();
-    let selects = Selects::new(if cli.selects.is_empty() {vec![Select::from_str(".").unwrap()]} else {cli.selects});
+    let selects = Selects::new(if cli.selects.is_empty() {
+        vec![Select::from_str(".").unwrap()]
+    } else {
+        cli.selects
+    });
+    let indent = usize::try_from(cli.indent.unwrap()).unwrap();
 
     Ok(Config {
         files: cli.files,
         selects,
         filters: cli.filters,
         verbosity,
-        ts
+        ts,
+        indent
     })
 }

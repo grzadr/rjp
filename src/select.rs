@@ -7,11 +7,17 @@ pub struct Select {
     path: String
 }
 
-impl From<&str> for Select {
-    fn from(s: &str) -> Self {
+impl Select {
+    pub fn new(s: &str) -> Self {
         Select {
             path: s.to_string()
         }
+    }
+}
+
+impl From<&str> for Select {
+    fn from(s: &str) -> Self {
+        Select::new(s)
     }
 }
 
@@ -19,9 +25,7 @@ impl std::str::FromStr for Select {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Select {
-            path: s.to_string()
-        })
+        Ok(Select::new(s))
     }
 }
 

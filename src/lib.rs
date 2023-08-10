@@ -5,6 +5,9 @@ use std::error::Error;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use select::{Select, Selects};
+use serde_json::json;
+use serde::Serialize;
+use std::string::FromUtf8Error;
 
 use log::*;
 
@@ -23,10 +26,20 @@ fn load_json(filename: &str) -> MyResult<Value> {
     Ok(json_content)
 }
 
-fn process_json(json_content: Value, selects: &Selects, filters: &Vec<String>) -> MyResult<()> {
+fn format_json(mut json_content: Value, indent: usize) -> MyResult<String> {
+    let mut buf = Vec::new();
+    let indent = std::iter::repeat(" ").take(indent).collect::<String>();
+    let formatter = serde_json::ser::PrettyFormatter::with_indent(indent.as_bytes());
+    let mut ser = serde_json::Serializer::with_formatter(&mut buf, formatter);
+    
+    json_content.serialize(&mut ser).unwrap();
+    Ok(String::from_utf8(buf).unwrap())
+}
+
+fn process_json(json_content: Value, selects: &Selects, filters: &Vec<String>, indent: usize) -> MyResult<()> {
     let mut selected = json_content;
 
-    println!("{}", serde_json::to_string_pretty(&selected).unwrap());
+    println!("{}", format_json(selected, indent).unwrap());
     Ok(())
 }
 
@@ -46,7 +59,7 @@ pub fn run(config: args::Config) -> MyResult<()> {
     for filename in config.files {
         info!("Processing file {}", filename);
         let json_content = load_json(&filename)?;
-        process_json(json_content, &config.selects, &config.filters)?;
+        process_json(json_content, &config.selects, &config.filters, config.indent)?;
     }
 
     Ok(())
