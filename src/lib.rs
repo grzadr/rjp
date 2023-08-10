@@ -1,8 +1,10 @@
-pub mod args;
+mod args;
+mod select;
 use serde_json::Value;
 use std::error::Error;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
+use select::{Select, Selects};
 
 use log::*;
 
@@ -21,7 +23,7 @@ fn load_json(filename: &str) -> MyResult<Value> {
     Ok(json_content)
 }
 
-fn process_json(json_content: Value, selects: &Vec<String>, filters: &Vec<String>) -> MyResult<()> {
+fn process_json(json_content: Value, selects: &Selects, filters: &Vec<String>) -> MyResult<()> {
     let mut selected = json_content;
 
     println!("{}", serde_json::to_string_pretty(&selected).unwrap());
