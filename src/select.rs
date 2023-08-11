@@ -31,7 +31,6 @@ fn parse_path(s: &str) -> Vec<String> {
 }
 
 impl Select {
-
     pub fn new(s: &str) -> Self {
         Select {
             path: s.to_string(),
@@ -87,19 +86,24 @@ impl fmt::Display for Selects {
     }
 }
 
+#[derive(Debug)]
 pub struct SelectedValue {
     pub value: Value,
     pub path: Select,
 }
 
 impl SelectedValue {
-    pub fn new(value: &Value, path: Select) -> Self {
-        let mut value = value.clone();
+    pub fn new(value: Value, path: Select) -> Self {
+        let mut value = value;
+        
         for field in path.collect() {
             if field == "." {
                 continue;
             }
-            value = value[field].clone();
+            value = match value {
+                Value::Object(obj) => if let Some(v) = obj.get(field) {v.clone()} else {Value::Null},
+                _ => break
+            }
         }
         Self { value, path }
     }

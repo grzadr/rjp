@@ -36,14 +36,18 @@ fn format_json(json_content: Value, indent: usize) -> MyResult<String> {
     Ok(String::from_utf8(buf).unwrap())
 }
 
-fn select_values(json_content: Value, selects: &Selects) -> MyResult<Vec<SelectedValue>> {
+fn select_values(json_content: &Value, selects: &Selects) -> MyResult<Vec<SelectedValue>> {
     let mut selected: Vec<SelectedValue> = Vec::new();
 
     for select in &selects.0{
-        selected.push(SelectedValue::new(&json_content, select.clone() ));
+        selected.push(SelectedValue::new(json_content.clone(), select.clone() ));
     }
 
     Ok(selected)
+}
+
+fn merge_values(selected: Vec<SelectedValue>) -> MyResult<Value> {
+    Ok(Value::Null)
 }
 
 fn print_selected_values(selected: Vec<SelectedValue>, format: &str, indent: usize) -> MyResult<()> {
@@ -51,6 +55,8 @@ fn print_selected_values(selected: Vec<SelectedValue>, format: &str, indent: usi
         "json" => {
             let mut json_content = json!({});
             for mut selected_value in selected {
+                debug!("{}", &selected_value.value);
+                dbg!(&selected_value);
                 let content = json_content.as_object_mut().unwrap();
                 if selected_value.path.name() == "." {
                     content.append(&mut selected_value.value.as_object_mut().unwrap());
@@ -88,10 +94,10 @@ pub fn run(config: args::Config) -> MyResult<()> {
     let mut selected: Vec<SelectedValue> = Vec::new();
 
     for filename in config.files {
-        info!("Processing file {}", filename);
+        info!("Processing file {filename}");
         let json_content = load_json(&filename)?;
         debug!("{}", serde_json::to_string_pretty(&json_content)?);
-        selected.append(&mut select_values(json_content, &config.selects)?);
+        selected.append(&mut select_values(&json_content, &config.selects)?);
     }
 
     let _ = print_selected_values(selected, "json", config.indent);
@@ -100,6 +106,5 @@ pub fn run(config: args::Config) -> MyResult<()> {
 }
 
 pub fn run_from_args() -> MyResult<()> {
-    let config = args::get_args()?;
-    run(config)
+    args::get_args().and_then(run)
 }
