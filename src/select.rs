@@ -1,73 +1,10 @@
 // src/select.rs
 
+pub mod token;
+
 use core::fmt;
-use std::str::FromStr;
 use regex::Regex;
 use serde_json::Value;
-
-#[derive(Debug, Clone)]
-pub struct TokenParsingError{msg: String}
-
-impl fmt::Display for TokenParsingError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.msg)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Token {
-    Field{ name: String, with_name: bool },
-    Object,
-    Array,
-    Any
-}
-
-impl std::str::FromStr for Token {
-    type Err = TokenParsingError;
-
-    fn from_str(s: &str) -> Result<Self, TokenParsingError> {
-        match s {
-            "$" => Ok(Self::Object),
-            "@" => Ok(Self::Array),
-            "*" => Ok(Self::Any),
-            "" => Err(TokenParsingError{msg:"Cannot convert empty string".to_string()}),
-            s => {
-                let with_name = s.starts_with('=');
-                let name = (if with_name { &s[1..] } else {s} ).trim_matches('"').to_string();
-                Ok(Self::Field{name, with_name})
-            }
-        }
-    }
-}
-
-impl From<&str> for Token {
-    fn from(s: &str) -> Self {
-        Token::from_str(s).unwrap()
-    }
-}
-
-fn parse_tokens(s: &str) -> Result<Vec<Token>, TokenParsingError> {
-    let mut result = Vec::new();
-
-    let mut previous = String::new();
-    for ele in s.split('.') {
-        if ele.starts_with("=\"") || ele.starts_with("\"") {
-            if !previous.is_empty() {
-                return Err(TokenParsingError{msg: "Error parsing select pattern {s} - {previous} not closed with \"".to_string() })
-            }
-            previous += ele;
-        } else if ele.ends_with("\"") {
-            previous += ele;
-            result.push(Token::from(&previous[..]));
-            previous.clear()
-        }
-        else {
-            result.push(Token::from(ele))
-        }
-    }
-
-    Ok(result)
-}
 
 fn parse_path(s: &str) -> Vec<String> {
     let mut result = vec![".".to_string()];
@@ -177,17 +114,23 @@ impl SelectedValue {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::token::*;
 
     #[test]
     fn test_parse_tokens() {
+        assert_eq!(parse_tokens("").unwrap(), Vec::new());
         assert_eq!(parse_tokens("*").unwrap(), vec![Token::Any]);
         assert_eq!(parse_tokens("*.*").unwrap(), vec![Token::Any, Token::Any]);
-        assert_eq!(parse_tokens("$").unwrap(), vec![Token::Object]);
-        assert_eq!(parse_tokens("@").unwrap(), vec![Token::Array]);
+        assert_eq!(parse_tokens("{}").unwrap(), vec![Token::Object]);
+        assert_eq!(parse_tokens("[]").unwrap(), vec![Token::Array]);
         assert_eq!(parse_tokens("name").unwrap(), vec![Token::Field{name: "name".to_string(), with_name: false}]);
         assert_eq!(parse_tokens("=name").unwrap(), vec![Token::Field{name: "name".to_string(), with_name: true}]);
-        assert_eq!(parse_tokens("$.=name").unwrap(), vec![Token::Object, Token::Field{name: "name".to_string(), with_name: true}]);
-        assert_eq!(parse_tokens("$.name").unwrap(), vec![Token::Object, Token::Field{name: "name".to_string(), with_name: false}]);
+        assert_eq!(parse_tokens("{}.=name").unwrap(), vec![Token::Object, Token::Field{name: "name".to_string(), with_name: true}]);
+        assert_eq!(parse_tokens("{}.name").unwrap(), vec![Token::Object, Token::Field{name: "name".to_string(), with_name: false}]);
+        assert_eq!(parse_tokens("{}.=\"name\"").unwrap(), vec![Token::Object, Token::Field{name: "name".to_string(), with_name: true}]);
+        assert_eq!(parse_tokens("{}.\"na.me\"").unwrap(), vec![Token::Object, Token::Field{name: "na.me".to_string(), with_name: false}]);
+        assert_eq!(parse_tokens("{}.=\"na.me.me\"").unwrap(), vec![Token::Object, Token::Field{name: "na.me.me".to_string(), with_name: true}]);
+        assert_eq!(parse_tokens("{}.\"na.me\".[]").unwrap(), vec![Token::Object, Token::Field{name: "na.me".to_string(), with_name: false}, Token::Array]);
     }
 
     #[test]
@@ -197,6 +140,11 @@ mod tests {
         assert_eq!(parse_path(".foo.bar"), vec![".".to_string(), "foo".to_string(), "bar".to_string()]);
         assert_eq!(parse_path(".foo.\"bar.baz\""), vec![".".to_string(), "foo".to_string(), "bar.baz".to_string()]);
         assert_eq!(parse_path(".foo.\"bar.baz\".qux"), vec![".".to_string(), "foo".to_string(), "bar.baz".to_string(), "qux".to_string()]);
+    }
+
+    #[test]
+    fn test_parse_tokens_err() {
+        assert!(matches!(parse_tokens(".."), Err(_)));
     }
 
     #[test]
