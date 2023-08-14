@@ -61,7 +61,7 @@ pub fn get_args() -> MyResult<Config> {
     }) as usize;
     let ts = stderrlog::Timestamp::from_str("ms").unwrap();
     let selects = Selects::new(if cli.selects.is_empty() {
-        vec![Select::from_str(".").unwrap()]
+        vec![Select::from_str("*").unwrap()]
     } else {
         cli.selects
     });

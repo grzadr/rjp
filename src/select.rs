@@ -21,10 +21,10 @@ impl Select {
         }
     }
 
-    pub fn collect(&self) -> Vec<&str> {
+    pub fn collect(&self) -> Vec<String> {
         self.fields
             .iter()
-            .map(|t| format!("{t}").as_str())
+            .map(|t| t.to_string())
             .collect()
     }
 
@@ -95,7 +95,7 @@ impl SelectedValue {
             }
             value = match value {
                 Value::Object(obj) => {
-                    if let Some(v) = obj.get(field) {
+                    if let Some(v) = obj.get(&field) {
                         v.clone()
                     } else {
                         Value::Null

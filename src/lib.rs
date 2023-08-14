@@ -47,29 +47,18 @@ fn select_values(json_content: &Value, selects: &Selects) -> MyResult<Vec<Select
 }
 
 fn merge_values(selected: Vec<SelectedValue>) -> MyResult<Value> {
-    Ok(Value::Null)
+    let result = json!("");
+
+    Ok(result)
 }
 
-fn print_selected_values(selected: Vec<SelectedValue>, format: &str, indent: usize) -> MyResult<()> {
+fn print_output(value: Value, format: &str, indent: usize) -> MyResult<()> {
     match format {
         "json" => {
-            let mut json_content = json!({});
-            for mut selected_value in selected {
-                debug!("{}", &selected_value.value);
-                dbg!(&selected_value);
-                let content = json_content.as_object_mut().unwrap();
-                if selected_value.path.name() == "." {
-                    content.append(&mut selected_value.value.as_object_mut().unwrap());
-                } else {
-                    content.insert(selected_value.path.name().to_string(), selected_value.value);
-                }
-            }
-            println!("{}", format_json(json_content, indent)?);
+            println!("{}", format_json(value, indent)?);
         }
         "text" => {
-            for selected_value in selected {
-                println!("{}", selected_value.value);
-            }
+            return Err("Not implemented".into());
         }
         _ => {
             return Err(format!("Unknown format {}", format).into());
@@ -100,7 +89,9 @@ pub fn run(config: args::Config) -> MyResult<()> {
         selected.append(&mut select_values(&json_content, &config.selects)?);
     }
 
-    let _ = print_selected_values(selected, "json", config.indent);
+    let merged = merge_values(selected);
+
+    print_output(merged?, "json", config.indent)?;
 
     Ok(())
 }
