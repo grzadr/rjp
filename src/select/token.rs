@@ -1,8 +1,8 @@
 // src/select/token.rs
 
 use core::fmt;
-use std::str::FromStr;
 use log::debug;
+use std::str::FromStr;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TokenParsingError {
@@ -19,7 +19,7 @@ impl std::str::FromStr for TokenParsingError {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, String> {
-        Ok(Self{ msg: s.to_string() })
+        Ok(Self { msg: s.to_string() })
     }
 }
 
@@ -28,7 +28,6 @@ impl From<&str> for TokenParsingError {
         TokenParsingError::from_str(s).unwrap()
     }
 }
-
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Token {
@@ -44,7 +43,9 @@ impl fmt::Display for Token {
             Self::Any => write!(f, "*"),
             Self::Array => write!(f, "[]"),
             Self::Object => write!(f, "{{}}"),
-            Self::Field { name, with_name } => write!(f, "{}{name}", if *with_name {"="} else {""})
+            Self::Field { name, with_name } => {
+                write!(f, "{}{name}", if *with_name { "=" } else { "" })
+            }
         }
     }
 }
@@ -107,7 +108,8 @@ pub fn parse_tokens(s: &str) -> Result<Vec<Token>, TokenParsingError> {
         previous += ele;
         dbg!(&previous);
 
-        if (previous.starts_with("=\"") || previous.starts_with("\"")) && !previous.ends_with("\"") {
+        if (previous.starts_with("=\"") || previous.starts_with("\"")) && !previous.ends_with("\"")
+        {
             dbg!("Add .");
             previous += ".";
             continue;
@@ -115,12 +117,14 @@ pub fn parse_tokens(s: &str) -> Result<Vec<Token>, TokenParsingError> {
 
         dbg!("Push");
 
-        result.push(
-            match Token::try_from(&previous[..]) {
-                Ok(k) => k,
-                Err(e) => return Err(TokenParsingError{ msg: format!("Error parsing '{s}' - {e}")})
+        result.push(match Token::try_from(&previous[..]) {
+            Ok(k) => k,
+            Err(e) => {
+                return Err(TokenParsingError {
+                    msg: format!("Error parsing '{s}' - {e}"),
+                })
             }
-        );
+        });
         previous.clear();
     }
 
@@ -138,8 +142,20 @@ mod tests {
         assert_eq!(Token::from_str("{}").unwrap(), Token::Object);
         assert_eq!(Token::from_str("[]").unwrap(), Token::Array);
         assert_eq!(Token::from_str("*").unwrap(), Token::Any);
-        assert_eq!(Token::from_str("name").unwrap(), Token::Field { name: String::from("name"), with_name: false });
-        assert_eq!(Token::from_str("=name").unwrap(), Token::Field { name: String::from("name"), with_name: true });
+        assert_eq!(
+            Token::from_str("name").unwrap(),
+            Token::Field {
+                name: String::from("name"),
+                with_name: false
+            }
+        );
+        assert_eq!(
+            Token::from_str("=name").unwrap(),
+            Token::Field {
+                name: String::from("name"),
+                with_name: true
+            }
+        );
     }
 
     #[test]
@@ -149,18 +165,88 @@ mod tests {
         assert_eq!(parse_tokens("*.*").unwrap(), vec![Token::Any, Token::Any]);
         assert_eq!(parse_tokens("{}").unwrap(), vec![Token::Object]);
         assert_eq!(parse_tokens("[]").unwrap(), vec![Token::Array]);
-        assert_eq!(parse_tokens("name").unwrap(), vec![Token::Field{name: "name".to_string(), with_name: false}]);
-        assert_eq!(parse_tokens("=name").unwrap(), vec![Token::Field{name: "name".to_string(), with_name: true}]);
-        assert_eq!(parse_tokens("{}.=name").unwrap(), vec![Token::Object, Token::Field{name: "name".to_string(), with_name: true}]);
-        assert_eq!(parse_tokens("{}.name").unwrap(), vec![Token::Object, Token::Field{name: "name".to_string(), with_name: false}]);
-        assert_eq!(parse_tokens("{}.=\"name\"").unwrap(), vec![Token::Object, Token::Field{name: "name".to_string(), with_name: true}]);
-        assert_eq!(parse_tokens("{}.\"na.me\"").unwrap(), vec![Token::Object, Token::Field{name: "na.me".to_string(), with_name: false}]);
-        assert_eq!(parse_tokens("{}.=\"na.me.me\"").unwrap(), vec![Token::Object, Token::Field{name: "na.me.me".to_string(), with_name: true}]);
-        assert_eq!(parse_tokens("{}.\"na.me\".[]").unwrap(), vec![Token::Object, Token::Field{name: "na.me".to_string(), with_name: false}, Token::Array]);
+        assert_eq!(
+            parse_tokens("name").unwrap(),
+            vec![Token::Field {
+                name: "name".to_string(),
+                with_name: false
+            }]
+        );
+        assert_eq!(
+            parse_tokens("=name").unwrap(),
+            vec![Token::Field {
+                name: "name".to_string(),
+                with_name: true
+            }]
+        );
+        assert_eq!(
+            parse_tokens("{}.=name").unwrap(),
+            vec![
+                Token::Object,
+                Token::Field {
+                    name: "name".to_string(),
+                    with_name: true
+                }
+            ]
+        );
+        assert_eq!(
+            parse_tokens("{}.name").unwrap(),
+            vec![
+                Token::Object,
+                Token::Field {
+                    name: "name".to_string(),
+                    with_name: false
+                }
+            ]
+        );
+        assert_eq!(
+            parse_tokens("{}.=\"name\"").unwrap(),
+            vec![
+                Token::Object,
+                Token::Field {
+                    name: "name".to_string(),
+                    with_name: true
+                }
+            ]
+        );
+        assert_eq!(
+            parse_tokens("{}.\"na.me\"").unwrap(),
+            vec![
+                Token::Object,
+                Token::Field {
+                    name: "na.me".to_string(),
+                    with_name: false
+                }
+            ]
+        );
+        assert_eq!(
+            parse_tokens("{}.=\"na.me.me\"").unwrap(),
+            vec![
+                Token::Object,
+                Token::Field {
+                    name: "na.me.me".to_string(),
+                    with_name: true
+                }
+            ]
+        );
+        assert_eq!(
+            parse_tokens("{}.\"na.me\".[]").unwrap(),
+            vec![
+                Token::Object,
+                Token::Field {
+                    name: "na.me".to_string(),
+                    with_name: false
+                },
+                Token::Array
+            ]
+        );
     }
 
     #[test]
     fn test_tokens_parse_err() {
-        assert_eq!(parse_tokens("..").expect_err(""), TokenParsingError::from("Error parsing '..' - Cannot convert empty string"));
+        assert_eq!(
+            parse_tokens("..").expect_err(""),
+            TokenParsingError::from("Error parsing '..' - Cannot convert empty string")
+        );
     }
 }
