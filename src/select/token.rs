@@ -32,10 +32,21 @@ impl From<&str> for TokenParsingError {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Token {
-    Field { name: String, with_name: bool },
-    Object,
-    Array,
     Any,
+    Array,
+    Object,
+    Field { name: String, with_name: bool },
+}
+
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Any => write!(f, "*"),
+            Self::Array => write!(f, "[]"),
+            Self::Object => write!(f, "{{}}"),
+            Self::Field { name, with_name } => write!(f, "{}{name}", if *with_name {"="} else {""})
+        }
+    }
 }
 
 impl std::str::FromStr for Token {
@@ -123,7 +134,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_tokens() {
+    fn test_tokens_repr() {
+        assert_eq!(Token::from_str("{}").unwrap(), Token::Object);
+        assert_eq!(Token::from_str("[]").unwrap(), Token::Array);
+        assert_eq!(Token::from_str("*").unwrap(), Token::Any);
+        assert_eq!(Token::from_str("name").unwrap(), Token::Field { name: String::from("name"), with_name: false });
+        assert_eq!(Token::from_str("=name").unwrap(), Token::Field { name: String::from("name"), with_name: true });
+    }
+
+    #[test]
+    fn test_tokens_parse() {
         assert_eq!(parse_tokens("").unwrap(), Vec::new());
         assert_eq!(parse_tokens("*").unwrap(), vec![Token::Any]);
         assert_eq!(parse_tokens("*.*").unwrap(), vec![Token::Any, Token::Any]);
@@ -140,7 +160,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_tokens_err() {
+    fn test_tokens_parse_err() {
         assert_eq!(parse_tokens("..").expect_err(""), TokenParsingError::from("Error parsing '..' - Cannot convert empty string"));
     }
 }

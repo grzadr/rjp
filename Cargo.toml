@@ -17,6 +17,7 @@ serde_json = { version = "1", features = ["preserve_order"] }
 log = "0.4"
 stderrlog = "0.5"
 regex = "1"
+itertools = "0"
 
 [dev-dependencies]
 assert_cmd = "2"

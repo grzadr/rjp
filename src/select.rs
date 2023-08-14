@@ -3,49 +3,32 @@
 pub mod token;
 
 use core::fmt;
-use regex::Regex;
 use serde_json::Value;
+use token::{Token, parse_tokens};
+use itertools::join;
 
-fn parse_path(s: &str) -> Vec<String> {
-    let mut result = vec![".".to_string()];
-    if s == "." {
-        return result;
-    }
-
-    let re = Regex::new(r#"\.(?:(?:\"([^\"]+)\")|([^.]+))"#).unwrap();
-    result.append(&mut re.captures_iter(s).map(|cap| {
-        if let Some(s) = cap.get(1) {
-            s.as_str().to_string()
-        } else if let Some(s) = cap.get(2) {
-            s.as_str().to_string()
-        } else {
-            panic!("Couldn't parse '{}'", s);
-        }
-    }).collect());
-
-    result
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Select {
-    path: String,
-    fields: Vec<String>,
+    fields: Vec<Token>,
 }
 
 impl Select {
     pub fn new(s: &str) -> Self {
         Select {
-            path: s.to_string(),
-            fields: parse_path(s),
+            fields: parse_tokens(s).map_err(|e| format!("Error creating Select - {e}")).unwrap(),
         }
     }
 
     pub fn collect(&self) -> Vec<&str> {
-        self.fields.iter().map(|s| s.as_str()).collect()
+        self.fields.iter().map(|t| format!("{t}").as_str()).collect()
     }
 
-    pub fn name(&self) -> &str {
-        self.fields.last().unwrap()
+    pub fn name(&self) -> Option<String> {
+        match self.fields.last() {
+            Some(t) => Some(t.to_string()),
+            _ => None
+        }
     }
 }
 
@@ -65,7 +48,7 @@ impl std::str::FromStr for Select {
 
 impl fmt::Display for Select {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.path)
+        write!(f, "{}", join(self.fields.iter().map(|t| t.to_string()), "."))
     }
 }
 
@@ -117,19 +100,19 @@ mod tests {
 
     #[test]
     fn test_select_new() {
-        assert_eq!(Select::new("."), Select { path: ".".to_string(), fields: vec![".".to_string()] });
-        assert_eq!(Select::new(".foo"), Select { path: ".foo".to_string(), fields: vec![".".to_string(), "foo".to_string()] });
-        assert_eq!(Select::new(".foo.bar"), Select { path: ".foo.bar".to_string(), fields: vec![".".to_string(), "foo".to_string(), "bar".to_string()] });
-        assert_eq!(Select::new(".foo.\"bar.baz\""), Select { path: ".foo.\"bar.baz\"".to_string(), fields: vec![".".to_string(), "foo".to_string(), "bar.baz".to_string()] });
-        assert_eq!(Select::new(".foo.\"bar.baz\".qux"), Select { path: ".foo.\"bar.baz\".qux".to_string(), fields: vec![".".to_string(), "foo".to_string(), "bar.baz".to_string(), "qux".to_string()] });
+        assert_eq!(Select::new("{}"), Select { fields: vec![Token::Object] });
+        assert_eq!(Select::new("{}.foo"), Select { fields: vec![Token::Object, "foo".try_into().unwrap()] });
+        assert_eq!(Select::new("foo.bar"), Select { fields: vec!["foo".try_into().unwrap(), "bar".try_into().unwrap()] });
+        assert_eq!(Select::new("foo.\"bar.baz\""), Select { fields: vec!["foo".try_into().unwrap(), "bar.baz".try_into().unwrap()] });
+        assert_eq!(Select::new("foo.\"bar.baz\".qux"), Select { fields: vec!["foo".try_into().unwrap(), "bar.baz".try_into().unwrap(), "qux".try_into().unwrap()] });
     }
 
     #[test]
     fn test_select_collect() {
-        assert_eq!(Select::new(".").collect(), vec!["."]);
-        assert_eq!(Select::new(".foo").collect(), vec![".", "foo"]);
-        assert_eq!(Select::new(".foo.bar").collect(), vec![".", "foo", "bar"]);
-        assert_eq!(Select::new(".foo.\"bar.baz\"").collect(), vec![".", "foo", "bar.baz"]);
-        assert_eq!(Select::new(".foo.\"bar.baz\".qux").collect(), vec![".", "foo", "bar.baz", "qux"]);
+        assert_eq!(Select::new("{}").collect(), vec!["{}"]);
+        assert_eq!(Select::new("{}.foo").collect(), vec!["{}", "foo"]);
+        assert_eq!(Select::new("{}.foo.bar").collect(), vec!["{}", "foo", "bar"]);
+        assert_eq!(Select::new("{}.foo.\"bar.baz\"").collect(), vec!["{}", "foo", "bar.baz"]);
+        assert_eq!(Select::new("{}.foo.\"bar.baz\".qux").collect(), vec![".", "foo", "bar.baz", "qux"]);
     }
 }
