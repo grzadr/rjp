@@ -2,6 +2,7 @@
 
 use core::fmt;
 use std::str::FromStr;
+use log::debug;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TokenParsingError {
@@ -13,6 +14,21 @@ impl fmt::Display for TokenParsingError {
         write!(f, "{}", self.msg)
     }
 }
+
+impl std::str::FromStr for TokenParsingError {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, String> {
+        Ok(Self{ msg: s.to_string() })
+    }
+}
+
+impl From<&str> for TokenParsingError {
+    fn from(s: &str) -> Self {
+        TokenParsingError::from_str(s).unwrap()
+    }
+}
+
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Token {
@@ -58,14 +74,16 @@ impl std::str::FromStr for Token {
     }
 }
 
-impl From<&str> for Token {
-    fn from(s: &str) -> Self {
-        Token::from_str(s).unwrap()
+impl TryFrom<&str> for Token {
+    type Error = TokenParsingError;
+
+    fn try_from(s: &str) -> Result<Self, TokenParsingError> {
+        Token::from_str(s)
     }
 }
 
 pub fn parse_tokens(s: &str) -> Result<Vec<Token>, TokenParsingError> {
-    dbg!("Parsing", s);
+    debug!("Parsing '{}'", s);
     let mut result = Vec::new();
 
     if s.is_empty() {
@@ -86,11 +104,43 @@ pub fn parse_tokens(s: &str) -> Result<Vec<Token>, TokenParsingError> {
 
         dbg!("Push");
 
-        result.push(Token::from(&previous[..]));
+        result.push(
+            match Token::try_from(&previous[..]) {
+                Ok(k) => k,
+                Err(e) => return Err(TokenParsingError{ msg: format!("Error parsing '{s}' - {e}")})
+            }
+        );
         previous.clear();
     }
 
     dbg!("Parsed");
     dbg!();
     Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_tokens() {
+        assert_eq!(parse_tokens("").unwrap(), Vec::new());
+        assert_eq!(parse_tokens("*").unwrap(), vec![Token::Any]);
+        assert_eq!(parse_tokens("*.*").unwrap(), vec![Token::Any, Token::Any]);
+        assert_eq!(parse_tokens("{}").unwrap(), vec![Token::Object]);
+        assert_eq!(parse_tokens("[]").unwrap(), vec![Token::Array]);
+        assert_eq!(parse_tokens("name").unwrap(), vec![Token::Field{name: "name".to_string(), with_name: false}]);
+        assert_eq!(parse_tokens("=name").unwrap(), vec![Token::Field{name: "name".to_string(), with_name: true}]);
+        assert_eq!(parse_tokens("{}.=name").unwrap(), vec![Token::Object, Token::Field{name: "name".to_string(), with_name: true}]);
+        assert_eq!(parse_tokens("{}.name").unwrap(), vec![Token::Object, Token::Field{name: "name".to_string(), with_name: false}]);
+        assert_eq!(parse_tokens("{}.=\"name\"").unwrap(), vec![Token::Object, Token::Field{name: "name".to_string(), with_name: true}]);
+        assert_eq!(parse_tokens("{}.\"na.me\"").unwrap(), vec![Token::Object, Token::Field{name: "na.me".to_string(), with_name: false}]);
+        assert_eq!(parse_tokens("{}.=\"na.me.me\"").unwrap(), vec![Token::Object, Token::Field{name: "na.me.me".to_string(), with_name: true}]);
+        assert_eq!(parse_tokens("{}.\"na.me\".[]").unwrap(), vec![Token::Object, Token::Field{name: "na.me".to_string(), with_name: false}, Token::Array]);
+    }
+
+    #[test]
+    fn test_parse_tokens_err() {
+        assert_eq!(parse_tokens("..").expect_err(""), TokenParsingError::from("Error parsing '..' - Cannot convert empty string"));
+    }
 }

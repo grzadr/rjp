@@ -114,38 +114,6 @@ impl SelectedValue {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::token::*;
-
-    #[test]
-    fn test_parse_tokens() {
-        assert_eq!(parse_tokens("").unwrap(), Vec::new());
-        assert_eq!(parse_tokens("*").unwrap(), vec![Token::Any]);
-        assert_eq!(parse_tokens("*.*").unwrap(), vec![Token::Any, Token::Any]);
-        assert_eq!(parse_tokens("{}").unwrap(), vec![Token::Object]);
-        assert_eq!(parse_tokens("[]").unwrap(), vec![Token::Array]);
-        assert_eq!(parse_tokens("name").unwrap(), vec![Token::Field{name: "name".to_string(), with_name: false}]);
-        assert_eq!(parse_tokens("=name").unwrap(), vec![Token::Field{name: "name".to_string(), with_name: true}]);
-        assert_eq!(parse_tokens("{}.=name").unwrap(), vec![Token::Object, Token::Field{name: "name".to_string(), with_name: true}]);
-        assert_eq!(parse_tokens("{}.name").unwrap(), vec![Token::Object, Token::Field{name: "name".to_string(), with_name: false}]);
-        assert_eq!(parse_tokens("{}.=\"name\"").unwrap(), vec![Token::Object, Token::Field{name: "name".to_string(), with_name: true}]);
-        assert_eq!(parse_tokens("{}.\"na.me\"").unwrap(), vec![Token::Object, Token::Field{name: "na.me".to_string(), with_name: false}]);
-        assert_eq!(parse_tokens("{}.=\"na.me.me\"").unwrap(), vec![Token::Object, Token::Field{name: "na.me.me".to_string(), with_name: true}]);
-        assert_eq!(parse_tokens("{}.\"na.me\".[]").unwrap(), vec![Token::Object, Token::Field{name: "na.me".to_string(), with_name: false}, Token::Array]);
-    }
-
-    #[test]
-    fn test_parse_path() {
-        assert_eq!(parse_path("."), vec![".".to_string()]);
-        assert_eq!(parse_path(".foo"), vec![".".to_string(), "foo".to_string()]);
-        assert_eq!(parse_path(".foo.bar"), vec![".".to_string(), "foo".to_string(), "bar".to_string()]);
-        assert_eq!(parse_path(".foo.\"bar.baz\""), vec![".".to_string(), "foo".to_string(), "bar.baz".to_string()]);
-        assert_eq!(parse_path(".foo.\"bar.baz\".qux"), vec![".".to_string(), "foo".to_string(), "bar.baz".to_string(), "qux".to_string()]);
-    }
-
-    #[test]
-    fn test_parse_tokens_err() {
-        assert!(matches!(parse_tokens(".."), Err(_)));
-    }
 
     #[test]
     fn test_select_new() {
