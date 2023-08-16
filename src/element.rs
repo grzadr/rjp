@@ -92,18 +92,19 @@ impl SelectedValue {
 
         for token in path.tokens {
             match token {
-                Token::Any
+                Token::Any => continue,
+                Token::Field { name, with_name }
             if token == "." {
                 continue;
             }
             value = match value {
                 Value::Object(obj) => {
                     if let Some(v) = obj.get(&field) {
-                        v.clone()
+                        v
                     } else {
-                        Value::Null
+                        break
                     }
-                }
+                },
                 _ => break,
             }
         }
