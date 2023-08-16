@@ -1,4 +1,4 @@
-// src/select.rs
+// src/element.rs
 
 pub mod token;
 
@@ -8,63 +8,63 @@ use serde_json::Value;
 use token::{parse_tokens, Token};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Select {
-    fields: Vec<Token>,
+pub struct Element {
+    tokens: Vec<Token>,
 }
 
-impl Select {
+impl Element {
     pub fn new(s: &str) -> Self {
-        Select {
-            fields: parse_tokens(s)
+        Element {
+            tokens: parse_tokens(s)
                 .map_err(|e| format!("Error creating Select - {e}"))
                 .unwrap(),
         }
     }
 
     pub fn collect(&self) -> Vec<String> {
-        self.fields
+        self.tokens
             .iter()
             .map(|t| t.to_string())
             .collect()
     }
 
     pub fn name(&self) -> Option<String> {
-        match self.fields.last() {
+        match self.tokens.last() {
             Some(t) => Some(t.to_string()),
             _ => None,
         }
     }
 }
 
-impl From<&str> for Select {
+impl From<&str> for Element {
     fn from(s: &str) -> Self {
-        Select::new(s)
+        Element::new(s)
     }
 }
 
-impl std::str::FromStr for Select {
+impl std::str::FromStr for Element {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Select::new(s))
+        Ok(Element::new(s))
     }
 }
 
-impl fmt::Display for Select {
+impl fmt::Display for Element {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "{}",
-            join(self.fields.iter().map(|t| t.to_string()), ".")
+            join(self.tokens.iter().map(|t| t.to_string()), ".")
         )
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Selects(pub Vec<Select>);
+pub struct Selects(pub Vec<Element>);
 
 impl Selects {
-    pub fn new(v: Vec<Select>) -> Self {
+    pub fn new(v: Vec<Element>) -> Self {
         Selects(v)
     }
 }
@@ -81,16 +81,19 @@ impl fmt::Display for Selects {
 
 #[derive(Debug)]
 pub struct SelectedValue {
+    pub filename: String,
     pub value: Value,
-    pub path: Select,
+    pub path: Element,
 }
 
 impl SelectedValue {
-    pub fn new(value: Value, path: Select) -> Self {
+    pub fn new(filename: String, value: Value, path: Element) -> Self {
         let mut value = value;
 
-        for field in path.collect() {
-            if field == "." {
+        for token in path.tokens {
+            match token {
+                Token::Any
+            if token == "." {
                 continue;
             }
             value = match value {
@@ -104,7 +107,7 @@ impl SelectedValue {
                 _ => break,
             }
         }
-        Self { value, path }
+        Self { filename, value, path }
     }
 }
 
@@ -115,33 +118,33 @@ mod tests {
     #[test]
     fn test_select_new() {
         assert_eq!(
-            Select::new("{}"),
-            Select {
-                fields: vec![Token::Object]
+            Element::new("{}"),
+            Element {
+                tokens: vec![Token::Object]
             }
         );
         assert_eq!(
-            Select::new("{}.foo"),
-            Select {
-                fields: vec![Token::Object, "foo".try_into().unwrap()]
+            Element::new("{}.foo"),
+            Element {
+                tokens: vec![Token::Object, "foo".try_into().unwrap()]
             }
         );
         assert_eq!(
-            Select::new("foo.bar"),
-            Select {
-                fields: vec!["foo".try_into().unwrap(), "bar".try_into().unwrap()]
+            Element::new("foo.bar"),
+            Element {
+                tokens: vec!["foo".try_into().unwrap(), "bar".try_into().unwrap()]
             }
         );
         assert_eq!(
-            Select::new("foo.\"bar.baz\""),
-            Select {
-                fields: vec!["foo".try_into().unwrap(), "bar.baz".try_into().unwrap()]
+            Element::new("foo.\"bar.baz\""),
+            Element {
+                tokens: vec!["foo".try_into().unwrap(), "bar.baz".try_into().unwrap()]
             }
         );
         assert_eq!(
-            Select::new("foo.\"bar.baz\".qux"),
-            Select {
-                fields: vec![
+            Element::new("foo.\"bar.baz\".qux"),
+            Element {
+                tokens: vec![
                     "foo".try_into().unwrap(),
                     "bar.baz".try_into().unwrap(),
                     "qux".try_into().unwrap()
@@ -152,18 +155,18 @@ mod tests {
 
     #[test]
     fn test_select_collect() {
-        assert_eq!(Select::new("{}").collect(), vec!["{}"]);
-        assert_eq!(Select::new("{}.foo").collect(), vec!["{}", "foo"]);
+        assert_eq!(Element::new("{}").collect(), vec!["{}"]);
+        assert_eq!(Element::new("{}.foo").collect(), vec!["{}", "foo"]);
         assert_eq!(
-            Select::new("{}.foo.bar").collect(),
+            Element::new("{}.foo.bar").collect(),
             vec!["{}", "foo", "bar"]
         );
         assert_eq!(
-            Select::new("{}.foo.\"bar.baz\"").collect(),
+            Element::new("{}.foo.\"bar.baz\"").collect(),
             vec!["{}", "foo", "bar.baz"]
         );
         assert_eq!(
-            Select::new("{}.foo.\"bar.baz\".qux").collect(),
+            Element::new("{}.foo.\"bar.baz\".qux").collect(),
             vec!["{}", "foo", "bar.baz", "qux"]
         );
     }

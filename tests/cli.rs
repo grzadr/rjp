@@ -57,15 +57,15 @@ fn test_select_default() -> TestResult {
 
 #[test]
 fn test_select_name() -> TestResult {
-    run_file_success("tests/json_files/select_name", &["-s", ".name"])
+    run_file_success("tests/json_files/select_name", &["-s", "name"])
 }
 
 #[test]
 fn test_select_name_sku_price() -> TestResult {
-    run_file_success("tests/json_files/select_name_sku_price", &["-s", ".name","-s", ".sku", "-s", ".price",])
+    run_file_success("tests/json_files/select_name_sku_price", &["-s", "name","-s", "sku", "-s", "price",])
 }
 
 #[test]
 fn test_select_ship_to() -> TestResult {
-    run_file_success("tests/json_files/select_shipTo", &["-s", ".shipTo"])
+    run_file_success("tests/json_files/select_shipTo", &["-s", "shipTo"])
 }

@@ -1,10 +1,10 @@
 mod args;
-mod select;
+mod element;
 use serde_json::Value;
 use std::error::Error;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
-use select::{SelectedValue, Selects};
+use element::{SelectedValue, Selects};
 use serde::Serialize;
 use serde_json::json;
 
@@ -36,29 +36,63 @@ fn format_json(json_content: Value, indent: usize) -> MyResult<String> {
     Ok(String::from_utf8(buf).unwrap())
 }
 
-fn select_values(json_content: &Value, selects: &Selects) -> MyResult<Vec<SelectedValue>> {
+fn select_values(filename: String, json_content: &Value, selects: &Selects) -> MyResult<Vec<SelectedValue>> {
     let mut selected: Vec<SelectedValue> = Vec::new();
 
     for select in &selects.0{
-        selected.push(SelectedValue::new(json_content.clone(), select.clone() ));
+        selected.push(SelectedValue::new(filename, json_content.clone(), select.clone()));
     }
 
     Ok(selected)
 }
 
-fn merge_values(selected: Vec<SelectedValue>) -> MyResult<Value> {
-    let result = json!("");
+fn process_files(files: Vec<String>, fields: &Selects) -> MyResult<Vec<SelectedValue>> {
+    let mut selected: Vec<SelectedValue> = Vec::new();
 
-    Ok(result)
+    for filename in files {
+        info!("Processing file {filename}");
+        let json_content = load_json(&filename)?;
+        debug!("{}", serde_json::to_string_pretty(&json_content)?);
+        selected.append(&mut select_values(filename, &json_content, fields)?);
+    }
+
+    Ok(selected)
 }
 
-fn print_output(value: Value, format: &str, indent: usize) -> MyResult<()> {
+
+fn join_values(selected: Vec<SelectedValue>, join: args::Join) -> Option<Value> {
+
+    if selected.is_empty() {
+        return None;
+    }
+
+    let mut result = match selected.first().unwrap().value {
+        Value::Array(v) => v,
+        Value::Object(v) => v,
+        v => 
+    }
+
+    for ele in selected {
+        let value = ele.value;
+        let path = ele.path;
+        match &value {
+            Value::Array => 
+        }
+    }
+
+    result
+}
+
+fn print_output(value: Option<Value>, format: &str, indent: usize) -> MyResult<()> {
+    if value.is_none() {
+
+    }
     match format {
         "json" => {
-            println!("{}", format_json(value, indent)?);
+            println!("{}", format_json(value.unwrap(), indent)?);
         }
         "text" => {
-            return Err("Not implemented".into());
+            todo!("tesxt not implemented")
         }
         _ => {
             return Err(format!("Unknown format {}", format).into());
@@ -80,18 +114,11 @@ pub fn run(config: args::Config) -> MyResult<()> {
 
     debug!("Configuration {:#?}", config);
 
-    let mut selected: Vec<SelectedValue> = Vec::new();
+    let selected = process_files(config.files, &config.selects);
 
-    for filename in config.files {
-        info!("Processing file {filename}");
-        let json_content = load_json(&filename)?;
-        debug!("{}", serde_json::to_string_pretty(&json_content)?);
-        selected.append(&mut select_values(&json_content, &config.selects)?);
-    }
+    let merged = join_values(selected?, config.join);
 
-    let merged = merge_values(selected);
-
-    print_output(merged?, "json", config.indent)?;
+    print_output(merged, "json", config.indent)?;
 
     Ok(())
 }

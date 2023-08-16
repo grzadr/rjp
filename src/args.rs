@@ -1,12 +1,18 @@
 // src/args.rs
 
-use super::select::{Select, Selects};
-use clap::Parser;
+use super::element::{Element, Selects};
+use clap::{Parser, ValueEnum};
 use std::error::Error;
 use std::str::FromStr;
 use stderrlog::Timestamp;
 
 type MyResult<T> = Result<T, Box<dyn Error>>;
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+pub enum Join {
+    Merge,
+    Concat,
+}
 
 #[derive(Debug)]
 pub struct Config {
@@ -16,6 +22,8 @@ pub struct Config {
     pub verbosity: usize,
     pub ts: Timestamp,
     pub indent: usize,
+    pub join: Join,
+    pub expand: bool
 }
 
 #[derive(Parser, Debug)]
@@ -26,10 +34,10 @@ struct Cli {
 
     #[arg(
         short, long, help = "Elements to be selected",
-        value_parser = clap::builder::ValueParser::new(Select::from_str),
+        value_parser = clap::builder::ValueParser::new(Element::from_str),
         // default_value_t = Some(Selects::new(vec![Select::from_str(".").unwrap()]))
     )]
-    selects: Vec<Select>,
+    selects: Vec<Element>,
 
     #[arg(short, long, help = "Filtering conditions")]
     filters: Vec<String>,
@@ -45,6 +53,12 @@ struct Cli {
 
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbosity: u8,
+
+    #[arg(short, long, value_enum, help = "Strategy for merging values")]
+    join: Join,
+
+    #[arg(short, long, help = "Expand values instead of producing JSON")]
+    expand: bool,
 }
 
 pub fn get_args() -> MyResult<Config> {
@@ -61,7 +75,7 @@ pub fn get_args() -> MyResult<Config> {
     }) as usize;
     let ts = stderrlog::Timestamp::from_str("ms").unwrap();
     let selects = Selects::new(if cli.selects.is_empty() {
-        vec![Select::from_str("*").unwrap()]
+        vec![Element::from_str("*").unwrap()]
     } else {
         cli.selects
     });
@@ -73,6 +87,8 @@ pub fn get_args() -> MyResult<Config> {
         filters: cli.filters,
         verbosity,
         ts,
-        indent
+        indent,
+        join: cli.join,
+        expand: cli.expand
     })
 }
